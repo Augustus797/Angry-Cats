@@ -5,6 +5,7 @@ public class PopCatEntity extends CatEntity {
     public PopCatEntity(Main g, int centerX, int centerY, double power) {
         super(g, SPRITE, centerX, centerY);
         bounces = 1;
+        gravity = 250;
         launch(700, power);
     } // constructor
 } // PopCatEntity

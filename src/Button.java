@@ -7,9 +7,11 @@ public class Button {
     private Rectangle bounds;
     private String label;      
     private Sprite icon;
+    private String spriteRef;
     private boolean selected = false;
 
     public Button(String text, String spriteRef, int x, int y, int w, int h) {
+    	this.spriteRef = spriteRef;
         label = text;
         bounds = new Rectangle(x, y, w, h);
         if (spriteRef != null && !spriteRef.equals("")) {
@@ -43,7 +45,12 @@ public class Button {
 
         // icon (36x36)
         if (icon != null) {
-            g.drawImage(icon.image, bounds.x + (bounds.width - 36) / 2, bounds.y + 6, 36, 36, null);
+        	if (spriteRef.contains("level")) {
+        		g.drawImage(icon.image, bounds.x, bounds.y, 64, 64, null);
+        	}
+        	else {
+        		g.drawImage(icon.image, bounds.x + (bounds.width - 36) / 2, bounds.y + 6, 36, 36, null);
+        	}
         } // if
 
         g.setFont(LABEL_FONT);

@@ -2,7 +2,7 @@
 public class Levels {
     public static final int LEVEL_COUNT = 3;
 
-    private static final int[] AMMO = {4, 5, 6};
+    private static final int[] AMMO = {3, 5, 5};
 
     private static final int[][][] DOGS = {
 

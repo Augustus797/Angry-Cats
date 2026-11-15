@@ -7,6 +7,7 @@ public class GrumpyCatEntity extends CatEntity {
     public GrumpyCatEntity(Main g, int centerX, int centerY, double power) {
         super(g, SPRITE, centerX, centerY);
         bounces = 1;
+        cost = 2;
         launch(700, power);
     } // constructor
 

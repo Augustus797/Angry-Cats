@@ -5,7 +5,8 @@ public class HappyCatEntity extends CatEntity {
     public HappyCatEntity(Main g, int centerX, int centerY, double power) {
         super(g, SPRITE, centerX, centerY);
         bounces = 3;
-        gravity = 980;
+        cost = 2;
+        gravity = 700;
         launch(650, power);
     } // constructor
 } // HappyCatEntity

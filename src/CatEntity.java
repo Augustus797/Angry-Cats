@@ -5,6 +5,7 @@ public abstract class CatEntity extends Entity {
     protected Main game;            // the game in which the shot exists
     protected int bounces = 1;      // # of bounces a cat has (default 1)
     protected double gravity = 0;
+    public int cost = 1; 
 
     public CatEntity(Main g, String r, int centerX, int centerY) {
         super(r, 0, 0);       

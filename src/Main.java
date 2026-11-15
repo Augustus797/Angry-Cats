@@ -12,7 +12,6 @@ public class Main extends Canvas {
     public static final int SCREEN_W = 800;
     public static final int SCREEN_H = 600;
 
-    private static final int START_AMMO = 5;
     private static final double MAX_PULL = 100;    // how far you can drag the cat
     private static final double MIN_PULL = 15;     // thereshold for shot firing (less = cancel)
     private static final double GRAB_RADIUS = 60;  // how close you have to click the cat
@@ -20,22 +19,22 @@ public class Main extends Canvas {
     private static final Font HUD_FONT  = new Font("Arial", Font.BOLD, 28);
     private static final Font INFO_FONT = new Font("Arial", Font.PLAIN, 14);
 
-    private static final String[] CAT_NAMES   = {"Pop Cat", "Happy Cat", "Grumpy Cat"};
-    private static final String[] CAT_SPRITES = {PopCatEntity.SPRITE, HappyCatEntity.SPRITE, GrumpyCatEntity.SPRITE};
+    private static final String[] CAT_NAMES   = {"Pop Cat", "Happy Cat", "Grumpy Cat", "Nyan Cat", "Long Cat"};
+    private static final String[] CAT_SPRITES = {PopCatEntity.SPRITE, HappyCatEntity.SPRITE, GrumpyCatEntity.SPRITE, NyanCatEntity.SPRITE, LongCatEntity.SPRITE};
+    private CatEntity shot;
 
     private BufferStrategy strategy;
     private volatile boolean waitingForKeyPress = false;
-    private boolean leftPressed = false;  // true if left key (A) is pressed
-    private boolean rightPressed = false; // true if right key (D) is pressed
     private boolean upPressed = false;    // true if up key (W) is pressed
     private boolean downPressed = false;  // true if down key (S) is pressed
     private volatile boolean paused = false;
-    private volatile boolean displayMenu = false;
+    private volatile boolean displayMenu = true;
 
     private boolean gameRunning = true;
     private ArrayList<Entity> entities = new ArrayList<Entity>();       // list of entities in game
     private ArrayList<Entity> removeEntities = new ArrayList<Entity>(); // list of entities to remove
     private ArrayList<Button> buttons = new ArrayList<Button>();        // cat buttons
+    private ArrayList<Button> menuButtons = new ArrayList<Button>();    // menu buttons 
 
     private PlayerEntity player;
     private Entity pointer;
@@ -45,9 +44,11 @@ public class Main extends Canvas {
     private long firingInterval = 500;
     private int alienCount;            
     private int ammo;  
-    private int level = 0;
-    private boolean levelWon = false;
+    private int level;
     private BufferedImage background;
+    private BufferedImage logo;
+    private boolean levelWon = false;
+    private boolean levelSelected = false;
 
     public int mouseX;
     public int mouseY;
@@ -78,6 +79,7 @@ public class Main extends Canvas {
 
         try {
             background = ImageIO.read(new File("images/background.png"));
+            logo = ImageIO.read(new File("images/logo.png"));
         } catch (IOException e) {
             e.printStackTrace();
         } // catch
@@ -98,7 +100,10 @@ public class Main extends Canvas {
 
         createBufferStrategy(3);
         strategy = getBufferStrategy();
-
+        
+        initPlayer();
+        drawMenu((Graphics2D) strategy.getDrawGraphics());
+        IO.println("main: " + level);
         initButtons();
         initEntities();
         gameLoop();
@@ -115,23 +120,36 @@ public class Main extends Canvas {
         } // for
     } // initButtons
 
-    private void initEntities() {
-        player = new PlayerEntity(this, CAT_SPRITES[cat], 100, 500);
+    private void initPlayer() {
+    	player = new PlayerEntity(this, CAT_SPRITES[cat], 100, 500);
         entities.add(player);
+    }
+    
+    private void initEntities() {
+    	if (levelSelected) {
+    		pointer = new PlayerPointer(this, "sprites/pointer.gif", 0, 0);
+            pointer.setVisible(false);
+            entities.add(pointer);
 
-        pointer = new PlayerPointer(this, "sprites/pointer.gif", 0, 0);
-        pointer.setVisible(false);
-        entities.add(pointer);
+            // dogs at random spots
+            alienCount = 0;
+            int[][] dogs = Levels.getDogs(level);
+            IO.println("initEntity dog: " + level);
+    		for (int i = 0; i < dogs.length; i++) {
+    			entities.add(new DogEntity("sprites/dog.gif", dogs[i][0], dogs[i][1]));
+    			alienCount++;
+    		}
 
-        // dogs at random spots
-        alienCount = 0;
-        int[][] dogs = Levels.getDogs(level);
-		for (int i = 0; i < dogs.length; i++) {
-			entities.add(new DogEntity("sprites/dog.gif", dogs[i][0], dogs[i][1]));
-			alienCount++;
-		}
-
-        ammo = Levels.getAmmo(level);
+            ammo = Levels.getAmmo(level);
+            IO.println("initEntity ammo: " + level);
+    	}
+    	else {do {
+    		drawMenu((Graphics2D) strategy.getDrawGraphics());
+    	}while(!levelSelected);
+    	if (levelSelected) {
+    		initEntities();
+    	}
+    	}
     } // initEntities
 
     public void addEntity(Entity e) {
@@ -144,13 +162,16 @@ public class Main extends Canvas {
 
     public void notifyDeath() {
         message = "You failed to eradicate the dogs! Try again?";
+        levelSelected = false;
         waitingForKeyPress = true;
+        drawMenu((Graphics2D) strategy.getDrawGraphics());
     } // notifyDeath
 
     public void notifyWin() {
+    	levelSelected = false;
         message = (level + 1 < Levels.LEVEL_COUNT) ? "You eradicated all the dogs here. Onwards!" : "You eradicated all dogs from existance!";
-        levelWon = true;
         waitingForKeyPress = true;
+        drawMenu((Graphics2D) strategy.getDrawGraphics());
     } // notifyWin
 
     public void notifyAlienKilled() {
@@ -158,6 +179,7 @@ public class Main extends Canvas {
 
         if (alienCount <= 0) {
             notifyWin();
+            
         } // if
     } // notifyAlienKilled
 
@@ -211,26 +233,54 @@ public class Main extends Canvas {
         int startY = (int) (player.getCenterY() + pullY);
 
         if (cat == 0) {
-            addEntity(new PopCatEntity(this, startX, startY, power));
-        } else if (cat == 1) {
-            addEntity(new HappyCatEntity(this, startX, startY, power*2));
-        } else {
-            addEntity(new GrumpyCatEntity(this, startX, startY, power));
-        } // else
-
-        ammo--;
+            shot = new PopCatEntity(this, startX, startY, power);
+        } 
+        else if (cat == 1) {
+            shot = new HappyCatEntity(this, startX, startY, power * 2);
+        } 
+        else if (cat == 2) {
+            shot = new GrumpyCatEntity(this, startX, startY, power);
+        }
+        else if (cat == 3) {
+        	shot = new NyanCatEntity(this, startX, startY, power);
+        }
+        else if(cat == 4) {
+        	shot = new LongCatEntity(this, startX, startY, power * 2);
+        }
+        
+        if (ammo - shot.cost >= 0) {
+        	addEntity(shot);
+        	ammo -= shot.cost;
+        }
+        
         lastFire = System.currentTimeMillis();
     } // fireCat
 
     public void drawMenu(Graphics2D g) {
         paused = true;
-        float alpha = 0.3f; // 0 is transparent, 1 is opaque
+        float alpha = 1f; // 0 is transparent, 1 is opaque
         g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, alpha));
 
         g.setColor(Color.BLUE);
         g.fillRect(0, 0, SCREEN_W, SCREEN_H);
 
         g.setComposite(AlphaComposite.SrcOver);
+        
+        g.drawImage(background, 0, 0, SCREEN_W, SCREEN_H, null);
+        g.drawImage(logo, 150, 10, logo.getWidth() * 2, logo.getHeight() * 2, null);
+        
+        menuButtons.add(new Button("", "sprites/level1.png", 200, 275, 64, 64));
+        menuButtons.add(new Button("", "sprites/level2.png", 400, 275, 64, 64));
+        menuButtons.add(new Button("", "sprites/level3.png", 600, 275, 64, 64));
+        
+        for (int i = 0; i < menuButtons.size(); i++) {
+            Button b = menuButtons.get(i);
+            b.draw(g, b.contains(mouseX, mouseY));
+        } // for
+        do {
+    		g.dispose();
+            strategy.show();
+    	}while(displayMenu);
     } // drawMenu
 
     private void updateMouse() {
@@ -294,9 +344,13 @@ public class Main extends Canvas {
         for (int i = 0; i < buttons.size(); i++) {
             buttons.get(i).setSelected(i == cat);
         } // for
+        for (int i = 0; i < menuButtons.size(); i++) {
+            menuButtons.get(i).setSelected(i == level);
+        } // for
         player.setSprite(CAT_SPRITES[cat]);
         player.setVisible(isLoaded());      
     } // updateButtons
+    
 
     private void drawShadowText(Graphics2D g, String text, int tx, int ty) {
         g.setColor(Color.BLACK);
@@ -329,17 +383,12 @@ public class Main extends Canvas {
 
             player.setHorizontalMovement(0);
             player.setVerticalMovement(0);
-            if (leftPressed && !rightPressed) {
-                player.setHorizontalMovement(-moveSpeed);
-            } else if (rightPressed && !leftPressed) {
-                player.setHorizontalMovement(moveSpeed);
-            } // else
             if (upPressed && !downPressed) {
                 player.setVerticalMovement(-moveSpeed);
             } else if (downPressed && !upPressed) {
                 player.setVerticalMovement(moveSpeed);
             } // else
-
+            if (!displayMenu) {menuButtons.clear();}
             Graphics2D g = (Graphics2D) strategy.getDrawGraphics();
             g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
             g.setColor(Color.black);
@@ -354,7 +403,7 @@ public class Main extends Canvas {
             } // if
 
             // move entities
-            if (!paused) {
+            if (!paused && !displayMenu) {
                 for (int i = 0; i < entities.size(); i++) {
                     Entity entity = entities.get(i);
                     entity.move(delta);
@@ -370,6 +419,11 @@ public class Main extends Canvas {
             // draw buttons
             for (int i = 0; i < buttons.size(); i++) {
                 Button b = buttons.get(i);
+                b.draw(g, b.contains(mouseX, mouseY));
+            } // for
+            
+            for (int i = 0; i < menuButtons.size(); i++) {
+                Button b = menuButtons.get(i);
                 b.draw(g, b.contains(mouseX, mouseY));
             } // for
 
@@ -418,40 +472,35 @@ public class Main extends Canvas {
 
 
     private void startGame() {
-        if (levelWon) {
-            level++;
-            if (level >= Levels.LEVEL_COUNT) {
-                level = 0;
-            } // if
-            levelWon = false;
-        } // if
-		
+    	if(levelWon) {
+    		levelWon = false;
+    		level++;
+    		if (level > Levels.LEVEL_COUNT) {
+    			level = 0;
+    		}
+    	}
+    	IO.println("started game");
+    	drawMenu((Graphics2D) strategy.getDrawGraphics());
         entities.clear();
         removeEntities.clear();
-
+        
+        initPlayer();
+        
         initEntities();
 
-        leftPressed = false;
-        rightPressed = false;
         upPressed = false;
         downPressed = false;
         dragging = false;
         fireRequested = false;
         lastFire = 0;
         pullLength = 0;
-
-        paused = false;
-        displayMenu = false;
+        levelWon = false;
+        
+        displayMenu = true;
     } // startGame
 
 
     private void setKey(int keyCode, boolean down) {
-        if (keyCode == KeyEvent.VK_A) {
-            leftPressed = down;
-        } // if
-        if (keyCode == KeyEvent.VK_D) {
-            rightPressed = down;
-        } // if
         if (keyCode == KeyEvent.VK_W) {
             upPressed = down;
         } // if
@@ -477,18 +526,10 @@ public class Main extends Canvas {
             if (e.getKeyCode() >= KeyEvent.VK_1 && e.getKeyCode() < KeyEvent.VK_1 + CAT_NAMES.length) {
                 cat = e.getKeyCode() - KeyEvent.VK_1;
             } // if
-
+            
             // pause (P)
             if (e.getKeyCode() == KeyEvent.VK_P) {
                 paused = !paused;
-            } // if
-
-            // menu (M)
-            if (e.getKeyCode() == KeyEvent.VK_M) {
-                if (displayMenu && paused) {
-                    paused = false;
-                } // if
-                displayMenu = !displayMenu;
             } // if
         } // keyPressed
 
@@ -520,6 +561,17 @@ public class Main extends Canvas {
             for (int i = 0; i < buttons.size(); i++) {
                 if (buttons.get(i).contains(e.getX(), e.getY())) {
                     cat = i;
+                    return;
+                } // if
+            } // for
+            
+            for (int i = 0; i < menuButtons.size(); i++) {
+                if (menuButtons.get(i).contains(e.getX(), e.getY())) {
+                    level = i;
+                    IO.print("selected lvl: " + level);
+                    displayMenu = false;
+                    paused = false;
+                    levelSelected = true;
                     return;
                 } // if
             } // for
